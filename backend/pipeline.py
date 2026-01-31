@@ -6,10 +6,12 @@ from openai import OpenAI
 
 from backend.build_system_prompt import build_scene_system_prompt
 from backend.materials import get_material_table_str
+from backend.scene_to_code import generate_script_from_scene
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
 
 class SceneGeneratorPipeline:
     """
@@ -19,21 +21,22 @@ class SceneGeneratorPipeline:
     def __init__(self, api_key: Optional[str] = None, base_url: str = "https://api.keywordsai.co/api/"):
         """
         Initialize the pipeline with Keywords AI credentials.
-        
+
         Args:
             api_key: Keywords AI API Key. Defaults to KEYWORDSAI_API_KEY env var.
             base_url: Keywords AI API Base URL.
         """
         self.api_key = api_key or os.environ.get("KEYWORDSAI_API_KEY")
         if not self.api_key:
-            logger.warning("KEYWORDSAI_API_KEY not found in environment variables.")
+            logger.warning(
+                "KEYWORDSAI_API_KEY not found in environment variables.")
 
         # Keywords AI is OpenAI-compatible
         self.client = OpenAI(
             api_key=self.api_key,
             base_url=base_url
         )
-        
+
         # Pre-build the system prompt with materials
         self.material_table = get_material_table_str()
         self.system_prompt = build_scene_system_prompt(self.material_table)
@@ -50,7 +53,8 @@ class SceneGeneratorPipeline:
             A dictionary containing the scene specification.
         """
         if not self.client.api_key:
-             raise ValueError("API Key is missing. Please set KEYWORDSAI_API_KEY.")
+            raise ValueError(
+                "API Key is missing. Please set KEYWORDSAI_API_KEY.")
 
         logger.info(f"Generating scene for: {user_description}")
 
@@ -63,13 +67,14 @@ class SceneGeneratorPipeline:
             response = self.client.chat.completions.create(
                 model=model,
                 messages=messages,
-                response_format={"type": "json_object"}, # Enforce JSON mode if supported
-                temperature=0.2, # Low temperature for consistent JSON
+                # Enforce JSON mode if supported
+                response_format={"type": "json_object"},
+                temperature=0.2,  # Low temperature for consistent JSON
             )
-            
+
             content = response.choices[0].message.content
             logger.debug(f"Raw response: {content}")
-            
+
             # Parse JSON
             scene_data = json.loads(content)
             return scene_data
@@ -81,11 +86,23 @@ class SceneGeneratorPipeline:
             logger.error(f"Error communicating with Keywords AI: {e}")
             raise
 
+    def generate_python_script(self, scene_data: Dict[str, Any]) -> str:
+        """
+        Converts a JSON scene specification into a PyElastica Python script.
+        """
+        return generate_script_from_scene(scene_data)
+
+
 if __name__ == "__main__":
     # Simple test if run directly
     pipeline = SceneGeneratorPipeline()
     try:
-        scene = pipeline.generate_scene("A vertical rubber rod clamped at the top, subject to gravity.")
+        scene = pipeline.generate_scene(
+            "A vertical rubber rod clamped at the top, subject to gravity.")
         print(json.dumps(scene, indent=2))
+
+        code = pipeline.generate_python_script(scene)
+        print("\n--- Generated Code ---\n")
+        print(code)
     except Exception as e:
         print(f"Pipeline failed: {e}")
