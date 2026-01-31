@@ -3,10 +3,14 @@ import json
 import logging
 from typing import Optional, Dict, Any
 from openai import OpenAI
+from dotenv import load_dotenv
 
 from backend.build_system_prompt import build_scene_system_prompt
 from backend.materials import get_material_table_str
 from backend.scene_to_code import generate_script_from_scene
+
+# Load environment variables
+load_dotenv()
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -26,7 +30,7 @@ class SceneGeneratorPipeline:
             api_key: Keywords AI API Key. Defaults to KEYWORDSAI_API_KEY env var.
             base_url: Keywords AI API Base URL.
         """
-        self.api_key = api_key or os.environ.get("KEYWORDSAI_API_KEY")
+        self.api_key = os.environ.get("KEYWORDSAI_API_KEY")
         if not self.api_key:
             logger.warning(
                 "KEYWORDSAI_API_KEY not found in environment variables.")
@@ -98,7 +102,7 @@ if __name__ == "__main__":
     pipeline = SceneGeneratorPipeline()
     try:
         scene = pipeline.generate_scene(
-            "A vertical rubber rod clamped at the top, subject to gravity.")
+            "Assume we have a rod lying aligned in the x-direction, with high internal damping. We fix one end (say, the left end) of the rod to a wall. On the right end we apply a force directed axially pulling the rods tip.")
         print(json.dumps(scene, indent=2))
 
         code = pipeline.generate_python_script(scene)

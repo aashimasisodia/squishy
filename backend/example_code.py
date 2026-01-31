@@ -120,7 +120,7 @@ def add_endpoint_force(sim, rod, force, ramp_up_time=0.0):
 
 def connect_rods(sim, rod_one, rod_two, index_one=-1, index_two=0, k=1e5, nu=0.0):
     """
-    Connects two rods using a FixedJoint (spherical joint behavior if rotation not constrained, 
+    Connects two rods using a FixedJoint (spherical joint behavior if rotation not constrained,
     but FixedJoint usually implies rigid connection).
 
     Args:
@@ -209,7 +209,7 @@ def main():
     rod_0 = make_rod(
         sim,
         n_elem=10,
-        length=2.0,
+        length=1.0,
         radius=0.01,
         density=1100,
         youngs_modulus=10000000.0,
@@ -241,7 +241,6 @@ def main():
     with open('simulation_data.pkl', 'wb') as f:
         pickle.dump(data, f)
     print('Done.')
-
 
 if __name__ == '__main__':
     main()

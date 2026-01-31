@@ -5,155 +5,65 @@ import matplotlib.animation as animation
 from mpl_toolkits.mplot3d import Axes3D
 import sys
 import os
-import elastica as ea
-
-# Define the Simulator class (must inherit from BaseSystemCollection and CallBacks)
-class ButterflySimulator(ea.BaseSystemCollection, ea.CallBacks):
-    pass
-
-class SnakeSimulator(
-    ea.BaseSystemCollection,
-    ea.Constraints,
-    ea.Forcing,
-    ea.Damping,
-    ea.CallBacks,
-    ea.Contact,
-):
-    pass
-
-class RenderingCallBack(ea.CallBackBaseClass):
-    """
-    Call back function for recording simulation history
-    """
-    def __init__(self, step_skip: int, callback_params: dict) -> None:
-        ea.CallBackBaseClass.__init__(self)
-        self.every = step_skip
-        self.callback_params = callback_params
-
-    def make_callback(
-        self, system: ea.typing.RodType, time: np.float64, current_step: int
-    ) -> None:
-
-        if current_step % self.every == 0:
-            self.callback_params["time"].append(time)
-            self.callback_params["position"].append(system.position_collection.copy())
-            return
 
 def main():
-    filename = "butterfly_data.dat"
+    # Default filename, can be overridden by command line argument
+    filename = "simulation_data.pkl"
+    if len(sys.argv) > 1:
+        filename = sys.argv[1]
+    
+    # Fallback for the tutorial
+    if not os.path.exists(filename) and os.path.exists("simulation_data.dat"):
+        filename = "simulation_data.dat"
 
     if not os.path.exists(filename):
         print(f"File {filename} not found.")
-        print("Please run elastica_tutorial.py first to generate the data.")
+        print("Please run the simulation script first to generate the data.")
         return
 
-    print(f"Loading system configuration from {filename}...")
+    print(f"Loading simulation data from {filename}...")
     with open(filename, "rb") as f:
         data = pickle.load(f)
 
-    if "rod" not in data:
-        print("Error: 'rod' object not found in data.")
+    # Check for expected data structure
+    if "rods" not in data:
+        print("Error: 'rods' key not found in data.")
+        print("Expected format: {'rods': [{'time': [], 'position': []}, ...], 'metadata': {...}}")
         return
     
-    rod = data["rod"]
-    final_time = data.get("final_time", 10.0)
-    dl = data.get("dl", 1.0) # Default if not found
+    rods_history = data["rods"]
+    metadata = data.get("metadata", {})
+    fps = metadata.get("fps", 30)
     
-    # Try to find time step
-    if "time_step" in data:
-        dt = data["time_step"]
-    elif "dt" in data:
-        dt = data["dt"]
-    else:
-        dt = 0.01 * dl
-    
-    # Reconstruct the simulation environment
-    print("Setting up simulation...")
-    
-    if "features" in data:
-        print("Reconstructing system from features list...")
-        butterfly_sim = SnakeSimulator() # Use SnakeSimulator as it has all mixins
-        
-        # Add main rod
-        butterfly_sim.append(rod)
-        
-        # Add auxiliary systems (like planes)
-        if "auxiliary_systems" in data:
-            for aux_sys in data["auxiliary_systems"]:
-                butterfly_sim.append(aux_sys)
-                
-        # Apply features
-        for feature in data["features"]:
-            f_type = feature["type"]
-            cls = feature["class"]
-            kwargs = feature["kwargs"]
-            
-            if f_type == "forcing":
-                target = feature["target"]
-                butterfly_sim.add_forcing_to(target).using(cls, **kwargs)
-            elif f_type == "contact":
-                sys1 = feature["system_one"]
-                sys2 = feature["system_two"]
-                butterfly_sim.detect_contact_between(sys1, sys2).using(cls, **kwargs)
-            elif f_type == "damping":
-                target = feature["target"]
-                butterfly_sim.dampen(target).using(cls, **kwargs)
-            elif f_type == "constraint":
-                target = feature["target"]
-                butterfly_sim.constrain(target).using(cls, **kwargs)
-            else:
-                print(f"Unknown feature type: {f_type}")
+    if not rods_history:
+        print("No rod history found.")
+        return
 
-    elif "system" in data:
-        print("Using pre-configured system from data file (legacy mode).")
-        butterfly_sim = data["system"]
-    else:
-        print("Constructing new default simulation system.")
-        butterfly_sim = ButterflySimulator()
-        butterfly_sim.append(rod)
-    
-    # Setup recording
-    recorded_history = ea.defaultdict(list)
-    # Record initial state
-    recorded_history["time"].append(0.0)
-    recorded_history["position"].append(rod.position_collection.copy())
-    
-    # Add callback
-    # Adjust step_skip as needed. 
-    # If dt is small, we might want to skip more steps to keep animation manageable.
-    step_skip = 100 
-    butterfly_sim.collect_diagnostics(rod).using(
-        RenderingCallBack, step_skip=step_skip, callback_params=recorded_history
-    )
-    
-    butterfly_sim.finalize()
-    
-    # Setup time stepper
-    timestepper = ea.PositionVerlet()
-    # dt is already set above
-    # total_steps = int(final_time / dt)
-    # The saved final_time is usually large for Snake (22.0), and dt is small (1e-4)
-    # total_steps would be ~220,000. This might take a while.
-    total_steps = int(final_time / dt)
+    # Assuming all rods have the same time steps
+    times = rods_history[0]["time"]
+    n_steps = len(times)
+    print(f"Loaded {len(rods_history)} rods with {n_steps} frames.")
 
-    print(f"Starting simulation: Final time={final_time}, dt={dt}, Steps={total_steps}")
+    # Determine bounds for plotting (consider all rods)
+    all_pos_list = []
+    for history in rods_history:
+        # history["position"] is a list of (3, n_nodes) arrays
+        # Convert to a single array for this rod: (n_steps, 3, n_nodes)
+        rod_pos = np.array(history["position"])
+        all_pos_list.append(rod_pos)
     
-    # Run simulation
-    ea.integrate(timestepper, butterfly_sim, final_time, total_steps)
-    
-    print("Simulation complete.")
-    
-    # Now render the results
-    history = recorded_history["position"]
-    times = recorded_history["time"]
-    n_steps = len(history)
-    print(f"Recorded {n_steps} frames.")
+    # Concatenate all positions to find global min/max
+    # Shape: (n_rods * n_steps * n_nodes, 3) - flattened for easier min/max
+    # Or just iterate
+    min_vals = np.array([np.inf, np.inf, np.inf])
+    max_vals = np.array([-np.inf, -np.inf, -np.inf])
 
-    # Determine bounds for plotting
-    all_pos = np.array(history)  # Shape: (n_steps, 3, n_nodes)
-    
-    min_vals = np.min(all_pos, axis=(0, 2))
-    max_vals = np.max(all_pos, axis=(0, 2))
+    for rod_pos in all_pos_list:
+        # rod_pos shape: (n_steps, 3, n_nodes)
+        current_min = np.min(rod_pos, axis=(0, 2))
+        current_max = np.max(rod_pos, axis=(0, 2))
+        min_vals = np.minimum(min_vals, current_min)
+        max_vals = np.maximum(max_vals, current_max)
     
     # Add some margin
     ranges = max_vals - min_vals
@@ -174,33 +84,46 @@ def main():
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
-    ax.set_title('Butterfly Rod Animation')
+    ax.set_title('Elastica Simulation Animation')
     
-    line, = ax.plot([], [], [], 'o-', lw=2, markersize=4)
+    # Create lines for each rod
+    lines = []
+    for _ in rods_history:
+        line, = ax.plot([], [], [], 'o-', lw=2, markersize=2)
+        lines.append(line)
+        
     time_text = ax.text2D(0.05, 0.95, '', transform=ax.transAxes)
     
     def init():
-        line.set_data([], [])
-        line.set_3d_properties([])
+        for line in lines:
+            line.set_data([], [])
+            line.set_3d_properties([])
         time_text.set_text('')
-        return line, time_text
+        return lines + [time_text]
     
     def update(frame):
-        current_pos = history[frame]
-        line.set_data(current_pos[0], current_pos[1])
-        line.set_3d_properties(current_pos[2])
+        for i, line in enumerate(lines):
+            current_pos = all_pos_list[i][frame] # (3, n_nodes)
+            line.set_data(current_pos[0], current_pos[1])
+            line.set_3d_properties(current_pos[2])
+        
         time_text.set_text(f'Time: {times[frame]:.2f} s')
-        return line, time_text
+        return lines + [time_text]
     
     print("Creating animation...")
-    # Adjust interval for playback speed
+    # Adjust interval based on fps
+    interval = 1000 / fps
     ani = animation.FuncAnimation(
-        fig, update, frames=n_steps, init_func=init, blit=False, interval=30)
+        fig, update, frames=n_steps, init_func=init, blit=False, interval=interval)
     
-    save_filename = "butterfly_simulation.gif"
+    save_filename = "simulation.gif"
+    if filename != "simulation_data.pkl":
+        base_name = os.path.splitext(filename)[0]
+        save_filename = f"{base_name}.gif"
+        
     print(f"Saving animation to {save_filename}...")
     try:
-        ani.save(save_filename, writer='pillow', fps=30)
+        ani.save(save_filename, writer='pillow', fps=fps)
         print("Animation saved.")
     except Exception as e:
         print(f"Failed to save animation: {e}")

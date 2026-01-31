@@ -1,20 +1,30 @@
 import pickle
 import sys
-
-# Define a dummy class to catch the unpickling
-class SnakeSimulator:
-    pass
+import os
 
 def inspect():
+    filename = "simulation_data.dat"
+    if len(sys.argv) > 1:
+        filename = sys.argv[1]
+
+    if not os.path.exists(filename):
+        print(f"File {filename} not found.")
+        return
+
     try:
-        with open("butterfly_data.dat", "rb") as f:
+        with open(filename, "rb") as f:
             data = pickle.load(f)
-            print("Successfully loaded!")
-            print(data.keys())
-            if "system" in data:
-                print("System type:", type(data["system"]))
-                print("System module:", data["system"].__class__.__module__)
-                print("System class:", data["system"].__class__.__name__)
+            print(f"Successfully loaded {filename}!")
+            
+            if isinstance(data, dict):
+                print("Keys:", list(data.keys()))
+                if "rods" in data:
+                    print(f"Contains {len(data['rods'])} rod histories.")
+                if "metadata" in data:
+                    print("Metadata:", data["metadata"])
+            else:
+                print("Data is not a dictionary:", type(data))
+
     except Exception as e:
         print(f"Error loading pickle: {e}")
 
