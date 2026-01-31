@@ -11,6 +11,16 @@ import elastica as ea
 class ButterflySimulator(ea.BaseSystemCollection, ea.CallBacks):
     pass
 
+class SnakeSimulator(
+    ea.BaseSystemCollection,
+    ea.Constraints,
+    ea.Forcing,
+    ea.Damping,
+    ea.CallBacks,
+    ea.Contact,
+):
+    pass
+
 class RenderingCallBack(ea.CallBackBaseClass):
     """
     Call back function for recording simulation history
@@ -47,12 +57,60 @@ def main():
     
     rod = data["rod"]
     final_time = data.get("final_time", 10.0)
-    dl = data.get("dl", 1.0) # Default if not found, though it should be there
+    dl = data.get("dl", 1.0) # Default if not found
+    
+    # Try to find time step
+    if "time_step" in data:
+        dt = data["time_step"]
+    elif "dt" in data:
+        dt = data["dt"]
+    else:
+        dt = 0.01 * dl
     
     # Reconstruct the simulation environment
     print("Setting up simulation...")
-    butterfly_sim = ButterflySimulator()
-    butterfly_sim.append(rod)
+    
+    if "features" in data:
+        print("Reconstructing system from features list...")
+        butterfly_sim = SnakeSimulator() # Use SnakeSimulator as it has all mixins
+        
+        # Add main rod
+        butterfly_sim.append(rod)
+        
+        # Add auxiliary systems (like planes)
+        if "auxiliary_systems" in data:
+            for aux_sys in data["auxiliary_systems"]:
+                butterfly_sim.append(aux_sys)
+                
+        # Apply features
+        for feature in data["features"]:
+            f_type = feature["type"]
+            cls = feature["class"]
+            kwargs = feature["kwargs"]
+            
+            if f_type == "forcing":
+                target = feature["target"]
+                butterfly_sim.add_forcing_to(target).using(cls, **kwargs)
+            elif f_type == "contact":
+                sys1 = feature["system_one"]
+                sys2 = feature["system_two"]
+                butterfly_sim.detect_contact_between(sys1, sys2).using(cls, **kwargs)
+            elif f_type == "damping":
+                target = feature["target"]
+                butterfly_sim.dampen(target).using(cls, **kwargs)
+            elif f_type == "constraint":
+                target = feature["target"]
+                butterfly_sim.constrain(target).using(cls, **kwargs)
+            else:
+                print(f"Unknown feature type: {f_type}")
+
+    elif "system" in data:
+        print("Using pre-configured system from data file (legacy mode).")
+        butterfly_sim = data["system"]
+    else:
+        print("Constructing new default simulation system.")
+        butterfly_sim = ButterflySimulator()
+        butterfly_sim.append(rod)
     
     # Setup recording
     recorded_history = ea.defaultdict(list)
@@ -72,9 +130,12 @@ def main():
     
     # Setup time stepper
     timestepper = ea.PositionVerlet()
-    dt = 0.01 * dl
+    # dt is already set above
+    # total_steps = int(final_time / dt)
+    # The saved final_time is usually large for Snake (22.0), and dt is small (1e-4)
+    # total_steps would be ~220,000. This might take a while.
     total_steps = int(final_time / dt)
-    
+
     print(f"Starting simulation: Final time={final_time}, dt={dt}, Steps={total_steps}")
     
     # Run simulation
