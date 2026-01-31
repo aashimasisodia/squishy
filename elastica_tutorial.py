@@ -40,7 +40,7 @@ stretch_sim = StretchingBeamSimulator()
 final_time = 200.0
 
 # Options
-PLOT_FIGURE = True
+PLOT_FIGURE = False
 SAVE_FIGURE = True
 SAVE_RESULTS = True
 
@@ -114,6 +114,9 @@ class AxialStretchingCallBack(ea.CallBackBaseClass):
             self.callback_params["position"].append(
                 system.position_collection[0, -1].copy()
             )
+            self.callback_params["rod_history"].append(
+                system.position_collection.copy()
+            )
             self.callback_params["velocity_norms"].append(
                 np.linalg.norm(system.velocity_collection.copy())
             )
@@ -144,7 +147,8 @@ if PLOT_FIGURE:
     fig = plt.figure(figsize=(10, 8), frameon=True, dpi=150)
     ax = fig.add_subplot(111)
     ax.plot(recorded_history["time"], recorded_history["position"], lw=2.0)
-    ax.hlines(base_length + expected_tip_disp, 0.0, final_time, "k", "dashdot", lw=1.0)
+    ax.hlines(base_length + expected_tip_disp, 0.0,
+              final_time, "k", "dashdot", lw=1.0)
     ax.hlines(
         base_length + expected_tip_disp_improved, 0.0, final_time, "k", "dashed", lw=2.0
     )
@@ -157,7 +161,7 @@ if SAVE_RESULTS:
 
     filename = "axial_stretching_data.dat"
     file = open(filename, "wb")
-    pickle.dump(stretchable_rod, file)
+    pickle.dump(recorded_history, file)
     file.close()
 
     tv = (
