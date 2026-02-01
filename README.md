@@ -9,6 +9,7 @@ The application is architected as a monorepo containing a **FastAPI** backend fo
 We extend our thanks to [Keywords.ai](https://www.keywordsai.co/), [Trae](trae.ai), and [Lovable](https://lovable.dev/) for sponsoring credits for this project. We used Keywords to log our LLM requests and utilize the gateway to route the user request to the appropriate LLM based on the specific, grounded reasoning we needed. Trae powered our backend coding and Lovable our frontend.
 
 ![Easy visualization and script generation, removing need to download depreciated visualization software](preview.png)
+![GIF of snake](simulation-1769945189768.gif)
 ## System Architecture
 
 ### Backend (`/backend`)
