@@ -15,11 +15,19 @@ specification for a PyElastica-based simulator.
 You MUST NOT generate Python code.
 You MUST ONLY output valid JSON.
 Do not include explanations or markdown.
+Make sure ALL numbers are floats.
 
 ====================
 Available objects
 ====================
 - rod
+
+====================
+Available connections
+====================
+- fixed_joint (rigid connection)
+- spherical_joint (ball and socket)
+- hinge_joint (rotational joint)
 
 ====================
 Available constraints
@@ -47,6 +55,9 @@ JSON schema
   "objects": [
     {{
       "type": "rod",
+      "start": [number, number, number], // [x, y, z] meters, optional
+      "direction": [number, number, number], // [x, y, z] direction vector, optional
+      "normal": [number, number, number], // [x, y, z] normal vector, optional, must be perpendicular to the direction vector
       "length": number,              // meters
       "radius": number,              // meters
       "material": string,
@@ -68,7 +79,17 @@ JSON schema
   "render": {{
     "duration": number,
     "fps": number
-  }}
+  }},
+  "connections": [
+    {{
+      "rod_a_index": number, // Index of the first rod in the objects list
+      "rod_b_index": number, // Index of the second rod
+      "offset_a": string,    // "start" or "end"
+      "offset_b": string,    // "start" or "end"
+      "type": string,        // "fixed_joint" (default), "spherical_joint", "hinge_joint"
+      "normal": [number, number, number] // [x, y, z] Axis for hinge_joint, optional
+    }}
+  ]
 }}
 
 ====================

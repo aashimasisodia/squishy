@@ -74,7 +74,7 @@ def clamp_start(sim, rod):
 def clamp_end(sim, rod):
     """Fixes the final end of the rod (position and rotation)."""
     sim.constrain(rod).using(
-        ea.OneEndFixedBC,
+        ea.FixedConstraint,
         constrained_position_idx=(-1,),
         constrained_director_idx=(-1,),
     )
@@ -83,7 +83,7 @@ def clamp_end(sim, rod):
 def fix_node(sim, rod, index):
     """Fixes a specific node index of the rod."""
     sim.constrain(rod).using(
-        ea.OneEndFixedBC,
+        ea.FixedConstraint,
         constrained_position_idx=(index,),
         constrained_director_idx=(index,),
     )
@@ -118,25 +118,40 @@ def add_endpoint_force(sim, rod, force, ramp_up_time=0.0):
 
 # --- Connections ---
 
-def connect_rods(sim, rod_one, rod_two, index_one=-1, index_two=0, k=1e5, nu=0.0):
+def connect_fixed(sim, rod_one, rod_two, index_one=-1, index_two=0, k=1e5, nu=0.0, kt=1e5):
     """
-    Connects two rods using a FixedJoint (spherical joint behavior if rotation not constrained, 
-    but FixedJoint usually implies rigid connection).
-
-    Args:
-        index_one: Element index on first rod (default: last)
-        index_two: Element index on second rod (default: first)
-        k: Spring constant for joint
-        nu: Damping for joint
+    Connects two rods using a FixedJoint (rigid connection).
     """
-    sim.connect(rod_one, rod_two).using(
+    sim.connect(rod_one, rod_two, first_connect_idx=index_one, second_connect_idx=index_two).using(
         ea.FixedJoint,
         k=k,
         nu=nu,
-        kt=k,  # Rotational stiffness
-        nut=nu,  # Rotational damping
-        pinned_element_index=index_one,
-        v_index=index_two,
+        kt=kt,
+        nut=0.0,
+    )
+
+
+def connect_spherical(sim, rod_one, rod_two, index_one=-1, index_two=0, k=1e5, nu=0.0):
+    """
+    Connects two rods using a FreeJoint (spherical joint).
+    """
+    sim.connect(rod_one, rod_two, first_connect_idx=index_one, second_connect_idx=index_two).using(
+        ea.FreeJoint,
+        k=k,
+        nu=nu,
+    )
+
+
+def connect_hinge(sim, rod_one, rod_two, index_one=-1, index_two=0, k=1e5, nu=0.0, kt=1e1, normal=(0.0, 1.0, 0.0)):
+    """
+    Connects two rods using a HingeJoint.
+    """
+    sim.connect(rod_one, rod_two, first_connect_idx=index_one, second_connect_idx=index_two).using(
+        ea.HingeJoint,
+        k=k,
+        nu=nu,
+        kt=kt,
+        normal_direction=np.array(normal),
     )
 
 
@@ -205,24 +220,102 @@ def main():
 
     # 2. Create Objects
     rods = []
-    # Rod 0 (soft_biological_tissue)
+    # Rod 0 (rubber)
     rod_0 = make_rod(
         sim,
         n_elem=10,
-        length=1.0,
-        radius=0.01,
-        density=1000,
-        youngs_modulus=10000.0,
+        length=10.0,
+        radius=0.1,
+        density=1100,
+        youngs_modulus=10000000.0,
         poisson_ratio=0.5,
         start=[0.0, 0.0, 0.0],
-        direction=[0.0, 0.0, 1.0],
+        direction=[1.0, 0.0, 0.0],
         normal=[0.0, 1.0, 0.0]
     )
     rods.append(rod_0)
     clamp_start(sim, rod_0)
-    add_gravity(sim, rod_0, g=1.0, direction=[0, 0, -9.81])
-    add_endpoint_force(sim, rod_0, force=[5, 0, 0], ramp_up_time=0.1)
+    add_gravity(sim, rod_0, g=1.0, direction=[0.0, 0.0, -9.81])
     add_damping(sim, rod_0, damping_constant=0.1, time_step=1e-4)
+
+    # Rod 1 (rubber)
+    rod_1 = make_rod(
+        sim,
+        n_elem=10,
+        length=10.0,
+        radius=0.1,
+        density=1100,
+        youngs_modulus=10000000.0,
+        poisson_ratio=0.5,
+        start=[10.0, 0.0, 0.0],
+        direction=[1.0, 0.0, 0.0],
+        normal=[0.0, 1.0, 0.0]
+    )
+    rods.append(rod_1)
+    add_gravity(sim, rod_1, g=1.0, direction=[0.0, 0.0, -9.81])
+    add_damping(sim, rod_1, damping_constant=0.1, time_step=1e-4)
+
+    # Rod 2 (rubber)
+    rod_2 = make_rod(
+        sim,
+        n_elem=10,
+        length=10.0,
+        radius=0.1,
+        density=1100,
+        youngs_modulus=10000000.0,
+        poisson_ratio=0.5,
+        start=[20.0, 0.0, 0.0],
+        direction=[1.0, 0.0, 0.0],
+        normal=[0.0, 1.0, 0.0]
+    )
+    rods.append(rod_2)
+    add_gravity(sim, rod_2, g=1.0, direction=[0.0, 0.0, -9.81])
+    add_damping(sim, rod_2, damping_constant=0.1, time_step=1e-4)
+
+    # Rod 3 (rubber)
+    rod_3 = make_rod(
+        sim,
+        n_elem=10,
+        length=10.0,
+        radius=0.1,
+        density=1100,
+        youngs_modulus=10000000.0,
+        poisson_ratio=0.5,
+        start=[30.0, 0.0, 0.0],
+        direction=[1.0, 0.0, 0.0],
+        normal=[0.0, 1.0, 0.0]
+    )
+    rods.append(rod_3)
+    add_gravity(sim, rod_3, g=1.0, direction=[0.0, 0.0, -9.81])
+    add_damping(sim, rod_3, damping_constant=0.1, time_step=1e-4)
+
+    # Rod 4 (rubber)
+    rod_4 = make_rod(
+        sim,
+        n_elem=10,
+        length=10.0,
+        radius=0.1,
+        density=1100,
+        youngs_modulus=10000000.0,
+        poisson_ratio=0.5,
+        start=[40.0, 0.0, 0.0],
+        direction=[1.0, 0.0, 0.0],
+        normal=[0.0, 1.0, 0.0]
+    )
+    rods.append(rod_4)
+    clamp_end(sim, rod_4)
+    add_gravity(sim, rod_4, g=1.0, direction=[0.0, 0.0, -9.81])
+    add_damping(sim, rod_4, damping_constant=0.1, time_step=1e-4)
+
+    # Process Connections
+    # Connection: Rod 0 (end) -> Rod 1 (start) (Fixed)
+    connect_fixed(sim, rods[0], rods[1], index_one=-1, index_two=0)
+    # Connection: Rod 1 (end) -> Rod 2 (start) (Fixed)
+    connect_fixed(sim, rods[1], rods[2], index_one=-1, index_two=0)
+    # Connection: Rod 2 (end) -> Rod 3 (start) (Fixed)
+    connect_fixed(sim, rods[2], rods[3], index_one=-1, index_two=0)
+    # Connection: Rod 3 (end) -> Rod 4 (start) (Fixed)
+    connect_fixed(sim, rods[3], rods[4], index_one=-1, index_two=0)
 
     # 3. Setup Diagnostics
     history_list = []
@@ -230,7 +323,7 @@ def main():
         history_list.append(record_history(sim, rod, step_skip=200))
 
     # 4. Run Simulation
-    final_time = 5
+    final_time = 10.0
     dt = 1e-4
     total_steps = int(final_time / dt)
     print(f'Running simulation for {final_time}s ({total_steps} steps)...')
@@ -238,7 +331,7 @@ def main():
 
     # 5. Save Results
     print('Saving results to simulation_data.pkl...')
-    data = {'rods': history_list, 'metadata': {'fps': 30}}
+    data = {'rods': history_list, 'metadata': {'fps': 30.0}}
     with open('simulation_data.pkl', 'wb') as f:
         pickle.dump(data, f)
     print('Done.')

@@ -70,7 +70,7 @@ def clamp_start(sim, rod):
 def clamp_end(sim, rod):
     """Fixes the final end of the rod (position and rotation)."""
     sim.constrain(rod).using(
-        ea.OneEndFixedBC,
+        ea.FixedConstraint,
         constrained_position_idx=(-1,),
         constrained_director_idx=(-1,),
     )
@@ -79,7 +79,7 @@ def clamp_end(sim, rod):
 def fix_node(sim, rod, index):
     """Fixes a specific node index of the rod."""
     sim.constrain(rod).using(
-        ea.OneEndFixedBC,
+        ea.FixedConstraint,
         constrained_position_idx=(index,),
         constrained_director_idx=(index,),
     )
@@ -114,25 +114,40 @@ def add_endpoint_force(sim, rod, force, ramp_up_time=0.0):
 
 # --- Connections ---
 
-def connect_rods(sim, rod_one, rod_two, index_one=-1, index_two=0, k=1e5, nu=0.0):
+def connect_fixed(sim, rod_one, rod_two, index_one=-1, index_two=0, k=1e5, nu=0.0, kt=1e5):
     """
-    Connects two rods using a FixedJoint (spherical joint behavior if rotation not constrained, 
-    but FixedJoint usually implies rigid connection).
-
-    Args:
-        index_one: Element index on first rod (default: last)
-        index_two: Element index on second rod (default: first)
-        k: Spring constant for joint
-        nu: Damping for joint
+    Connects two rods using a FixedJoint (rigid connection).
     """
-    sim.connect(rod_one, rod_two).using(
+    sim.connect(rod_one, rod_two, first_connect_idx=index_one, second_connect_idx=index_two).using(
         ea.FixedJoint,
         k=k,
         nu=nu,
-        kt=k,  # Rotational stiffness
-        nut=nu,  # Rotational damping
-        pinned_element_index=index_one,
-        v_index=index_two,
+        kt=kt,
+        nut=0.0,
+    )
+
+
+def connect_spherical(sim, rod_one, rod_two, index_one=-1, index_two=0, k=1e5, nu=0.0):
+    """
+    Connects two rods using a FreeJoint (spherical joint).
+    """
+    sim.connect(rod_one, rod_two, first_connect_idx=index_one, second_connect_idx=index_two).using(
+        ea.FreeJoint,
+        k=k,
+        nu=nu,
+    )
+
+
+def connect_hinge(sim, rod_one, rod_two, index_one=-1, index_two=0, k=1e5, nu=0.0, kt=1e1, normal=(0.0, 1.0, 0.0)):
+    """
+    Connects two rods using a HingeJoint.
+    """
+    sim.connect(rod_one, rod_two, first_connect_idx=index_one, second_connect_idx=index_two).using(
+        ea.HingeJoint,
+        k=k,
+        nu=nu,
+        kt=kt,
+        normal_direction=np.array(normal),
     )
 
 

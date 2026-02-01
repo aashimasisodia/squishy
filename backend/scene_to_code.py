@@ -60,11 +60,10 @@ def generate_script_from_scene(scene_data: Dict[str, Any]) -> str:
             radius = obj.get("radius", 0.025)
             n_elem = obj.get("n_elem", 50)
 
-            # Default positions (can be enhanced to support positioning logic)
-            # For now, stack them or place them at origin if single
-            start_pos = [0.0, 0.0, 0.0]
-            direction = [0.0, 0.0, 1.0]
-            normal = [0.0, 1.0, 0.0]
+            # Parse positions and orientation from JSON, defaulting if missing
+            start_pos = obj.get("start", [0.0, 0.0, 0.0])
+            direction = obj.get("direction", [0.0, 0.0, 1.0])
+            normal = obj.get("normal", [0.0, 1.0, 0.0])
 
             script_lines.append(f"    # Rod {idx} ({material_name})")
             script_lines.append(f"    rod_{idx} = make_rod(")
@@ -127,6 +126,39 @@ def generate_script_from_scene(scene_data: Dict[str, Any]) -> str:
             script_lines.append(
                 f"    add_damping(sim, rod_{idx}, damping_constant=0.1, time_step=1e-4)")
             script_lines.append("")
+
+    # Process connections
+    connections = scene_data.get("connections", [])
+    if connections:
+        script_lines.append("    # Process Connections")
+        for conn in connections:
+            idx_a = conn.get("rod_a_index")
+            idx_b = conn.get("rod_b_index")
+            offset_a_str = conn.get("offset_a", "end")
+            offset_b_str = conn.get("offset_b", "start")
+            conn_type = conn.get("type", "fixed_joint")
+
+            # Map offset strings to indices
+            # "start" -> 0, "end" -> -1
+            map_offset = lambda x: 0 if x == "start" else -1
+            idx_one = map_offset(offset_a_str)
+            idx_two = map_offset(offset_b_str)
+            
+            # Check for joint type
+            if conn_type == "spherical_joint":
+                script_lines.append(f"    # Connection: Rod {idx_a} ({offset_a_str}) -> Rod {idx_b} ({offset_b_str}) (Spherical)")
+                script_lines.append(f"    connect_spherical(sim, rods[{idx_a}], rods[{idx_b}], index_one={idx_one}, index_two={idx_two})")
+            
+            elif conn_type == "hinge_joint":
+                normal = conn.get("normal", [0.0, 1.0, 0.0])
+                script_lines.append(f"    # Connection: Rod {idx_a} ({offset_a_str}) -> Rod {idx_b} ({offset_b_str}) (Hinge)")
+                script_lines.append(f"    connect_hinge(sim, rods[{idx_a}], rods[{idx_b}], index_one={idx_one}, index_two={idx_two}, normal={normal})")
+            
+            else: # fixed_joint or default
+                script_lines.append(f"    # Connection: Rod {idx_a} ({offset_a_str}) -> Rod {idx_b} ({offset_b_str}) (Fixed)")
+                script_lines.append(f"    connect_fixed(sim, rods[{idx_a}], rods[{idx_b}], index_one={idx_one}, index_two={idx_two})")
+        
+        script_lines.append("")
 
     # Diagnostics
     script_lines.append("    # 3. Setup Diagnostics")

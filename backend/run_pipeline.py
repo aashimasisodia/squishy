@@ -20,7 +20,10 @@ def main():
         return
 
     # 2. Generate Script
-    prompt = "A horizontal rod made of soft biological tissue fixed at the left end, being pulled down by gravity and pulled to the right by a 5N force at the tip."
+    # prompt = "A horizontal rod made of soft biological tissue fixed at the left end, being pulled down by gravity and pulled to the right by a 5N force at the tip."
+    prompt = """
+        Generate a long snake made of five smaller ten-unit rubber rods that are connected to each other by the ends. The first and last rods are fixed to opposite walls and gravity is pulling the whole snake down.
+    """
     print(f"\n[2/5] Generating scene for prompt: '{prompt}'")
     
     try:
