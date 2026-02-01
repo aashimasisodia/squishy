@@ -38,6 +38,10 @@ def make_rod(
     direction=(0.0, 0.0, 1.0),
     normal=(0.0, 1.0, 0.0),
     poisson_ratio=0.5,
+    nu=None,
+    velocity=(0.0, 0.0, 0.0),
+    omega=(0.0, 0.0, 0.0),
+    dt=None,
 ):
     """
     Creates a straight Cosserat rod and adds it to the simulator.
@@ -56,7 +60,26 @@ def make_rod(
         shear_modulus=shear_modulus,
     )
 
+    # Set initial velocity and angular velocity
+    rod.velocity_collection[:] = np.array(velocity)[:, None]
+    rod.omega_collection[:] = np.array(omega)[:, None]
+
     sim.append(rod)
+
+    if nu is not None:
+        if dt is None:
+            # Fallback or warning if dt is missing but needed for damping
+            # For now, we assume dt is required for AnalyticalLinearDamper
+            raise ValueError(
+                "dt must be provided to make_rod when damping (nu) is used.")
+
+        sim.dampen(rod).using(
+            ea.AnalyticalLinearDamper,
+            damping_constant=nu,
+            time_step=dt,
+            order=1
+        )
+
     return rod
 
 
@@ -91,6 +114,66 @@ def fix_node(sim, rod, index):
 
 # --- Forcing ---
 
+class MuscleTorques(ea.NoForces):
+    """
+    Applies a traveling wave of torque to the rod to simulate snake locomotion.
+    """
+
+    def __init__(self, amplitude, wave_length, frequency, phase, ramp, n_elems, direction):
+        super().__init__()
+        self.amplitude = amplitude
+        self.wave_number = 2 * np.pi / wave_length
+        self.frequency = frequency
+        self.phase = phase
+        self.ramp = ramp
+        # Direction of the torque axis (usually normal to the plane)
+        self.direction = np.array(direction)
+
+        # Pre-compute spatial phase
+        # s varies from 0 to L. We assume uniform elements.
+        # We need the positions of the elements (s coordinate)
+        # But we don't have L here easily unless passed.
+        # We'll compute s on the fly or pass L.
+        # Better: pass 'rod' to init? No, Forcing init usually just takes params.
+        # We can compute s in apply_forces if we assume rod is uniform.
+        # Or just pass an array of 's' values.
+        pass
+
+    def apply_torques(self, system, time: float = 0.0):
+        # Ramp up
+        factor = 1.0
+        if time < self.ramp:
+            factor = time / self.ramp
+
+        # Calculate torque profile
+        # s is approximate arc length
+        # lengths = system.lengths # (n_elems,)
+        # s = np.cumsum(lengths) - 0.5 * lengths
+        # For efficiency, we can assume uniform initial s if small deformations,
+        # or recompute. Recomputing is safer.
+
+        s = np.cumsum(system.lengths)
+        s -= 0.5 * system.lengths[0]  # Center of elements
+        # Normalize s? No, wave_number handles it.
+
+        # Traveling wave: A * cos(k*s - w*t + phi)
+        torque_mag = factor * self.amplitude * np.cos(
+            self.wave_number * s - 2 * np.pi * self.frequency * time + self.phase
+        )
+
+        # Apply to system.external_torques
+        # shape: (3, n_elems)
+        # We apply torque about the 'direction' axis.
+        # direction shape: (3,)
+
+        # Broadcast direction to (3, n_elems)
+        # torque_mag shape: (n_elems,)
+
+        torques = np.outer(self.direction, torque_mag)
+
+        system.external_torques += torques
+
+
 def add_gravity(sim, rod, g=9.81, direction=(0.0, 0.0, -1.0)):
     """Adds gravity force to the rod."""
     acc_gravity = np.array(direction) * g
@@ -113,6 +196,45 @@ def add_endpoint_force(sim, rod, force, ramp_up_time=0.0):
         0.0 * np.array(force),
         np.array(force),
         ramp_up_time=ramp_up_time,
+    )
+
+
+def add_muscle_activity(sim, rod, amplitude, wave_length, frequency, phase, ramp, direction=(0.0, 1.0, 0.0)):
+    """
+    Adds muscle activity (traveling wave torque) to the rod.
+
+    Args:
+        direction: Vector normal to the plane of motion (axis of torque).
+    """
+    sim.add_forcing_to(rod).using(
+        MuscleTorques,
+        amplitude=amplitude,
+        wave_length=wave_length,
+        frequency=frequency,
+        phase=phase,
+        ramp=ramp,
+        n_elems=rod.n_elems,
+        direction=direction
+    )
+
+
+def add_anisotropic_friction(sim, rod, static_friction, kinetic_friction, plane_normal=(0.0, 1.0, 0.0), plane_origin=(0.0, -0.025, 0.0)):
+    """
+    Adds anisotropic friction with a ground plane.
+
+    Args:
+        static_friction: [mu_forward, mu_backward, mu_sideways]
+        kinetic_friction: [mu_forward, mu_backward, mu_sideways]
+    """
+    sim.add_forcing_to(rod).using(
+        ea.AnisotropicFrictionalPlane,
+        k=1.0,  # Wall stiffness (repulsion)
+        nu=1e-6,  # Wall damping
+        plane_origin=np.array(plane_origin),
+        plane_normal=np.array(plane_normal),
+        slip_velocity_tol=1e-6,
+        static_mu_array=np.array(static_friction),
+        kinetic_mu_array=np.array(kinetic_friction),
     )
 
 
@@ -217,106 +339,30 @@ def finalize_and_integrate(
 def main():
     # 1. Setup Simulator
     sim = create_simulator()
+    dt = 0.0001
 
     # 2. Create Objects
     rods = []
-    # Rod 0 (rubber)
+    # Rod 0 (soft_biological_tissue)
     rod_0 = make_rod(
         sim,
-        n_elem=10,
-        length=10.0,
-        radius=0.1,
-        density=1100,
-        youngs_modulus=10000000.0,
+        n_elem=100,
+        length=1.0,
+        radius=0.01,
+        density=1000,
+        youngs_modulus=10000.0,
         poisson_ratio=0.5,
         start=[0.0, 0.0, 0.0],
         direction=[1.0, 0.0, 0.0],
-        normal=[0.0, 1.0, 0.0]
+        normal=[0.0, 1.0, 0.0],
+        velocity=[0.0, 0.0, 0.0],
+        omega=[0.0, 0.0, 0.0],
+        nu=0.0001,
+        dt=dt
     )
     rods.append(rod_0)
     clamp_start(sim, rod_0)
-    add_gravity(sim, rod_0, g=1.0, direction=[0.0, 0.0, -9.81])
-    add_damping(sim, rod_0, damping_constant=0.1, time_step=1e-4)
-
-    # Rod 1 (rubber)
-    rod_1 = make_rod(
-        sim,
-        n_elem=10,
-        length=10.0,
-        radius=0.1,
-        density=1100,
-        youngs_modulus=10000000.0,
-        poisson_ratio=0.5,
-        start=[10.0, 0.0, 0.0],
-        direction=[1.0, 0.0, 0.0],
-        normal=[0.0, 1.0, 0.0]
-    )
-    rods.append(rod_1)
-    add_gravity(sim, rod_1, g=1.0, direction=[0.0, 0.0, -9.81])
-    add_damping(sim, rod_1, damping_constant=0.1, time_step=1e-4)
-
-    # Rod 2 (rubber)
-    rod_2 = make_rod(
-        sim,
-        n_elem=10,
-        length=10.0,
-        radius=0.1,
-        density=1100,
-        youngs_modulus=10000000.0,
-        poisson_ratio=0.5,
-        start=[20.0, 0.0, 0.0],
-        direction=[1.0, 0.0, 0.0],
-        normal=[0.0, 1.0, 0.0]
-    )
-    rods.append(rod_2)
-    add_gravity(sim, rod_2, g=1.0, direction=[0.0, 0.0, -9.81])
-    add_damping(sim, rod_2, damping_constant=0.1, time_step=1e-4)
-
-    # Rod 3 (rubber)
-    rod_3 = make_rod(
-        sim,
-        n_elem=10,
-        length=10.0,
-        radius=0.1,
-        density=1100,
-        youngs_modulus=10000000.0,
-        poisson_ratio=0.5,
-        start=[30.0, 0.0, 0.0],
-        direction=[1.0, 0.0, 0.0],
-        normal=[0.0, 1.0, 0.0]
-    )
-    rods.append(rod_3)
-    add_gravity(sim, rod_3, g=1.0, direction=[0.0, 0.0, -9.81])
-    add_damping(sim, rod_3, damping_constant=0.1, time_step=1e-4)
-
-    # Rod 4 (rubber)
-    rod_4 = make_rod(
-        sim,
-        n_elem=10,
-        length=10.0,
-        radius=0.1,
-        density=1100,
-        youngs_modulus=10000000.0,
-        poisson_ratio=0.5,
-        start=[40.0, 0.0, 0.0],
-        direction=[1.0, 0.0, 0.0],
-        normal=[0.0, 1.0, 0.0]
-    )
-    rods.append(rod_4)
-    clamp_end(sim, rod_4)
-    add_gravity(sim, rod_4, g=1.0, direction=[0.0, 0.0, -9.81])
-    add_damping(sim, rod_4, damping_constant=0.1, time_step=1e-4)
-
-    # Process Connections
-    # Connection: Rod 0 (end) -> Rod 1 (start) (Fixed)
-    connect_fixed(sim, rods[0], rods[1], index_one=-1, index_two=0)
-    # Connection: Rod 1 (end) -> Rod 2 (start) (Fixed)
-    connect_fixed(sim, rods[1], rods[2], index_one=-1, index_two=0)
-    # Connection: Rod 2 (end) -> Rod 3 (start) (Fixed)
-    connect_fixed(sim, rods[2], rods[3], index_one=-1, index_two=0)
-    # Connection: Rod 3 (end) -> Rod 4 (start) (Fixed)
-    connect_fixed(sim, rods[3], rods[4], index_one=-1, index_two=0)
-
+    add_muscle_activity(sim, rod_0, amplitude=0.02, wave_length=0.5, frequency=1.0, phase=0.0, ramp=0.0)
     # 3. Setup Diagnostics
     history_list = []
     for rod in rods:
@@ -324,7 +370,6 @@ def main():
 
     # 4. Run Simulation
     final_time = 10.0
-    dt = 1e-4
     total_steps = int(final_time / dt)
     print(f'Running simulation for {final_time}s ({total_steps} steps)...')
     finalize_and_integrate(sim, final_time=final_time, total_steps=total_steps)

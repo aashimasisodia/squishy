@@ -43,7 +43,31 @@ def generate_script_from_scene(scene_data: Dict[str, Any]) -> str:
         "def main():",
         "    # 1. Setup Simulator",
         "    sim = create_simulator()",
-        "",
+    ])
+
+    # Determine dynamic time step (dt) based on rod discretization
+    # We scan all rods to find the minimum element length (dl)
+    min_dl = 1e9
+
+    for obj in objects:
+        if obj.get("type") == "rod":
+            l = obj.get("length", 1.0)
+            n = obj.get("n_elem", 50)
+            if n > 0:
+                min_dl = min(min_dl, l/n)
+    if min_dl == 1e9:
+        min_dl = 0.02
+
+    # Heuristic: dt should be small enough relative to wave speed and element size
+    # For stability, dt < 0.1 * dl / wave_speed usually.
+    # We use a safe conservative estimate.
+    dt = 0.01 * min_dl
+
+    # Write dt to the script
+    script_lines.append(f"    dt = {dt}")
+    script_lines.append("")
+
+    script_lines.extend([
         "    # 2. Create Objects",
         "    rods = []"
     ])
@@ -78,7 +102,17 @@ def generate_script_from_scene(scene_data: Dict[str, Any]) -> str:
                 f"        poisson_ratio={mat_props['poisson_ratio']},")
             script_lines.append(f"        start={start_pos},")
             script_lines.append(f"        direction={direction},")
-            script_lines.append(f"        normal={normal}")
+            script_lines.append(f"        normal={normal},")
+
+            # New fields for physics
+            velocity = obj.get("velocity", [0.0, 0.0, 0.0])
+            omega = obj.get("omega", [0.0, 0.0, 0.0])
+            nu = obj.get("nu", 1e-4)  # Default damping if not specified
+
+            script_lines.append(f"        velocity={velocity},")
+            script_lines.append(f"        omega={omega},")
+            script_lines.append(f"        nu={nu},")
+            script_lines.append(f"        dt=dt")
             script_lines.append(f"    )")
             script_lines.append(f"    rods.append(rod_{idx})")
 
@@ -100,20 +134,21 @@ def generate_script_from_scene(scene_data: Dict[str, Any]) -> str:
                 else:
                     force_type = force_spec.get("type")
                     params = force_spec
-                
+
                 if force_type == "gravity":
                     acc = params.get("acc", [0.0, 0.0, -9.81])
                     # Calculate direction and g from acc vector
                     acc_np = f"[{acc[0]}, {acc[1]}, {acc[2]}]"
-                    # We can pass the vector directly if we modify add_gravity, 
+                    # We can pass the vector directly if we modify add_gravity,
                     # but the current add_gravity takes g and direction.
                     # Let's just pass the vector as 'direction' and g=1.0 or modify add_gravity.
                     # Actually, looking at templates.py:
                     # def add_gravity(sim, rod, g=9.81, direction=(0.0, 0.0, -1.0)):
                     #    acc_gravity = np.array(direction) * g
                     # So we can just pass g=1.0 and direction=acc
-                    script_lines.append(f"    add_gravity(sim, rod_{idx}, g=1.0, direction={acc_np})")
-                    
+                    script_lines.append(
+                        f"    add_gravity(sim, rod_{idx}, g=1.0, direction={acc_np})")
+
                 elif force_type == "endpoint_force":
                     force_vec = params.get("force", [0.1, 0.0, 0.0])
                     ramp = params.get("ramp", 0.1)
@@ -121,11 +156,29 @@ def generate_script_from_scene(scene_data: Dict[str, Any]) -> str:
                     script_lines.append(
                         f"    add_endpoint_force(sim, rod_{idx}, force={force_str}, ramp_up_time={ramp})")
 
+                elif force_type == "muscle_activity":
+                    amp = min(abs(params.get("amplitude", 0.0)), 0.02)
+                    wave = params.get("wave_length", 1.0)
+                    freq = params.get("frequency", 1.0)
+                    phase = params.get("phase", 0.0)
+                    ramp = params.get("ramp", 0.0)
+                    # Use default direction (0,1,0) which is usually the normal for a rod along z or x
+                    script_lines.append(
+                        f"    add_muscle_activity(sim, rod_{idx}, amplitude={amp}, wave_length={wave}, frequency={freq}, phase={phase}, ramp={ramp})")
 
-            # Add damping
-            script_lines.append(
-                f"    add_damping(sim, rod_{idx}, damping_constant=0.1, time_step=1e-4)")
-            script_lines.append("")
+                elif force_type == "anisotropic_friction":
+                    static = params.get("static_friction", [0.0, 0.0, 0.0])
+                    kinetic = params.get("kinetic_friction", [0.0, 0.0, 0.0])
+                    p_norm = params.get("plane_normal", [0.0, 1.0, 0.0])
+                    p_orig = params.get("plane_origin", [0.0, -0.025, 0.0])
+
+                    s_str = f"[{static[0]}, {static[1]}, {static[2]}]"
+                    k_str = f"[{kinetic[0]}, {kinetic[1]}, {kinetic[2]}]"
+                    n_str = f"[{p_norm[0]}, {p_norm[1]}, {p_norm[2]}]"
+                    o_str = f"[{p_orig[0]}, {p_orig[1]}, {p_orig[2]}]"
+
+                    script_lines.append(
+                        f"    add_anisotropic_friction(sim, rod_{idx}, static_friction={s_str}, kinetic_friction={k_str}, plane_normal={n_str}, plane_origin={o_str})")
 
     # Process connections
     connections = scene_data.get("connections", [])
@@ -140,24 +193,30 @@ def generate_script_from_scene(scene_data: Dict[str, Any]) -> str:
 
             # Map offset strings to indices
             # "start" -> 0, "end" -> -1
-            map_offset = lambda x: 0 if x == "start" else -1
+            def map_offset(x): return 0 if x == "start" else -1
             idx_one = map_offset(offset_a_str)
             idx_two = map_offset(offset_b_str)
-            
+
             # Check for joint type
             if conn_type == "spherical_joint":
-                script_lines.append(f"    # Connection: Rod {idx_a} ({offset_a_str}) -> Rod {idx_b} ({offset_b_str}) (Spherical)")
-                script_lines.append(f"    connect_spherical(sim, rods[{idx_a}], rods[{idx_b}], index_one={idx_one}, index_two={idx_two})")
-            
+                script_lines.append(
+                    f"    # Connection: Rod {idx_a} ({offset_a_str}) -> Rod {idx_b} ({offset_b_str}) (Spherical)")
+                script_lines.append(
+                    f"    connect_spherical(sim, rods[{idx_a}], rods[{idx_b}], index_one={idx_one}, index_two={idx_two})")
+
             elif conn_type == "hinge_joint":
                 normal = conn.get("normal", [0.0, 1.0, 0.0])
-                script_lines.append(f"    # Connection: Rod {idx_a} ({offset_a_str}) -> Rod {idx_b} ({offset_b_str}) (Hinge)")
-                script_lines.append(f"    connect_hinge(sim, rods[{idx_a}], rods[{idx_b}], index_one={idx_one}, index_two={idx_two}, normal={normal})")
-            
-            else: # fixed_joint or default
-                script_lines.append(f"    # Connection: Rod {idx_a} ({offset_a_str}) -> Rod {idx_b} ({offset_b_str}) (Fixed)")
-                script_lines.append(f"    connect_fixed(sim, rods[{idx_a}], rods[{idx_b}], index_one={idx_one}, index_two={idx_two})")
-        
+                script_lines.append(
+                    f"    # Connection: Rod {idx_a} ({offset_a_str}) -> Rod {idx_b} ({offset_b_str}) (Hinge)")
+                script_lines.append(
+                    f"    connect_hinge(sim, rods[{idx_a}], rods[{idx_b}], index_one={idx_one}, index_two={idx_two}, normal={normal})")
+
+            else:  # fixed_joint or default
+                script_lines.append(
+                    f"    # Connection: Rod {idx_a} ({offset_a_str}) -> Rod {idx_b} ({offset_b_str}) (Fixed)")
+                script_lines.append(
+                    f"    connect_fixed(sim, rods[{idx_a}], rods[{idx_b}], index_one={idx_one}, index_two={idx_two})")
+
         script_lines.append("")
 
     # Diagnostics
@@ -168,10 +227,10 @@ def generate_script_from_scene(scene_data: Dict[str, Any]) -> str:
         "        history_list.append(record_history(sim, rod, step_skip=200))")
     script_lines.append("")
 
-    # Simulation loop
+    # 4. Run Simulation
     script_lines.append("    # 4. Run Simulation")
     script_lines.append(f"    final_time = {duration}")
-    script_lines.append("    dt = 1e-4")
+    # dt is defined at the top
     script_lines.append("    total_steps = int(final_time / dt)")
     script_lines.append(
         "    print(f'Running simulation for {final_time}s ({total_steps} steps)...')")

@@ -37,10 +37,12 @@ Available constraints
 - free
 
 ====================
-Available forces
+Available forcing/environment
 ====================
 - gravity
 - endpoint_force
+- muscle_activity (for snakes/locomotion)
+- anisotropic_friction (for ground interaction)
 
 ====================
 Available materials (real-world reference)
@@ -62,6 +64,9 @@ JSON schema
       "radius": number,              // meters
       "material": string,
       "n_elem": number,
+      "velocity": [number, number, number], // [vx, vy, vz] m/s, optional initial velocity
+      "omega": [number, number, number],    // [wx, wy, wz] rad/s, optional initial angular velocity
+      "nu": number,                         // damping coefficient, optional
       "constraints": [string],
       "forces": [
         {{
@@ -72,6 +77,21 @@ JSON schema
           "type": "endpoint_force",
           "force": [number, number, number], // [x, y, z] Newtons
           "ramp": number // seconds, optional
+        }},
+        {{
+          "type": "muscle_activity",
+          "amplitude": number,      // max torque
+          "wave_length": number,    // meters
+          "frequency": number,      // Hz
+          "phase": number,          // radians
+          "ramp": number            // seconds
+        }},
+        {{
+          "type": "anisotropic_friction",
+          "static_friction": [number, number, number],  // [forward, backward, normal] coefficients
+          "kinetic_friction": [number, number, number], // [forward, backward, normal] coefficients
+          "plane_normal": [number, number, number],     // [x, y, z] normal of the surface
+          "plane_origin": [number, number, number]      // [x, y, z] origin of the surface
         }}
       ]
     }}
