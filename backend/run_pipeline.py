@@ -22,10 +22,7 @@ def main():
     # 2. Generate Script
     # prompt = "A horizontal rod made of soft biological tissue fixed at the left end, being pulled down by gravity and pulled to the right by a 5N force at the tip."
     prompt = """
-       Generate a PyElastica simulation of a single Cosserat rod in 3D where the base of the rod is clamped (fixed position and fixed director frame at s=0).
-The rod should be actuated by a time-varying intrinsic curvature that forms a traveling sinusoidal wave along the rod (kappa(s,t) = A sin(2π(s/λ − t/T))).
-
-
+       Generate a PyElastica simulation of a single Cosserat rod made of soft biological tissues in 3D where the endpoints of the rod are free to move. The rod should be actuated by a time-varying intrinsic curvature that forms a traveling sinusoidal wave along the rod (kappa(s,t) = A sin(2π(s/λ - t/T))).
     """
     print(f"\n[2/5] Generating scene for prompt: '{prompt}'")
 

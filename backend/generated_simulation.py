@@ -204,11 +204,31 @@ def add_muscle_activity(sim, rod, amplitude, wave_length, frequency, phase, ramp
     Adds muscle activity (traveling wave torque) to the rod.
 
     Args:
+        amplitude: Wave amplitude in meters (spatial displacement). 
+                   Converted to torque internally: Torque = B * k^2 * Amp.
         direction: Vector normal to the plane of motion (axis of torque).
     """
+    # Compute Bending Stiffness B
+    # rod.bend_matrix shape is (3, 3, n_elems-1) usually, or n_elems.
+    # PyElastica stores it as (3, 3, n_elems).
+    # We use the average bending stiffness.
+    if hasattr(rod, "bend_matrix"):
+        # Average of B_xx and B_yy
+        B_mean = (np.mean(rod.bend_matrix[0, 0, :]) +
+                  np.mean(rod.bend_matrix[1, 1, :])) / 2.0
+    else:
+        # Fallback (should not be reached for CosseratRod)
+        B_mean = 1.0
+
+    # Calculate required torque amplitude
+    # Curvature Kappa = A * k^2
+    # Torque = B * Kappa
+    k = 2 * np.pi / wave_length
+    torque_amplitude = B_mean * (k**2) * amplitude
+
     sim.add_forcing_to(rod).using(
         MuscleTorques,
-        amplitude=amplitude,
+        amplitude=torque_amplitude,
         wave_length=wave_length,
         frequency=frequency,
         phase=phase,
@@ -353,7 +373,7 @@ def main():
         youngs_modulus=10000.0,
         poisson_ratio=0.5,
         start=[0.0, 0.0, 0.0],
-        direction=[1.0, 0.0, 0.0],
+        direction=[0.0, 0.0, 1.0],
         normal=[0.0, 1.0, 0.0],
         velocity=[0.0, 0.0, 0.0],
         omega=[0.0, 0.0, 0.0],
@@ -361,7 +381,6 @@ def main():
         dt=dt
     )
     rods.append(rod_0)
-    clamp_start(sim, rod_0)
     add_muscle_activity(sim, rod_0, amplitude=0.02, wave_length=0.5, frequency=1.0, phase=0.0, ramp=0.0)
     # 3. Setup Diagnostics
     history_list = []
