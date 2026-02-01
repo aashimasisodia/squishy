@@ -95,18 +95,3 @@ class SceneGeneratorPipeline:
         Converts a JSON scene specification into a PyElastica Python script.
         """
         return generate_script_from_scene(scene_data)
-
-
-if __name__ == "__main__":
-    # Simple test if run directly
-    pipeline = SceneGeneratorPipeline()
-    try:
-        scene = pipeline.generate_scene(
-            "Assume we have a rod lying aligned in the x-direction, with high internal damping. We fix one end (say, the left end) of the rod to a wall. On the right end we apply a force directed axially pulling the rods tip.")
-        print(json.dumps(scene, indent=2))
-
-        code = pipeline.generate_python_script(scene)
-        print("\n--- Generated Code ---\n")
-        print(code)
-    except Exception as e:
-        print(f"Pipeline failed: {e}")

@@ -32,7 +32,7 @@ Available constraints
 Available forces
 ====================
 - gravity
-- endpoint_twist
+- endpoint_force
 
 ====================
 Available materials (real-world reference)
@@ -52,7 +52,17 @@ JSON schema
       "material": string,
       "n_elem": number,
       "constraints": [string],
-      "forces": [string]
+      "forces": [
+        {{
+          "type": "gravity",
+          "acc": [number, number, number] // [x, y, z] m/s^2, default [0, 0, -9.81]
+        }},
+        {{
+          "type": "endpoint_force",
+          "force": [number, number, number], // [x, y, z] Newtons
+          "ramp": number // seconds, optional
+        }}
+      ]
     }}
   ],
   "render": {{
@@ -68,7 +78,7 @@ Rules
 - Use ONLY the object, constraint and force names listed above.
 - If a value is not specified by the user, choose a realistic default.
 - Use the material table to select realistic parameters.
-- If the user asks for twisting a rod, use "endpoint_twist".
+- For "endpoint_force", if the user says "pull", apply a force in the appropriate direction.
 - Always include a render block.
 - Output ONLY valid JSON.
 """

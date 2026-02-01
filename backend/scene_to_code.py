@@ -93,20 +93,35 @@ def generate_script_from_scene(scene_data: Dict[str, Any]) -> str:
 
             # Process forces
             forces = obj.get("forces", [])
-            for force in forces:
-                if force == "gravity":
-                    script_lines.append(f"    add_gravity(sim, rod_{idx})")
-                elif force == "endpoint_twist":
-                    # Example twist force
-                    script_lines.append(f"    # Apply twist")
+            for force_spec in forces:
+                # Handle both string (old schema) and dict (new schema)
+                if isinstance(force_spec, str):
+                    force_type = force_spec
+                    params = {}
+                else:
+                    force_type = force_spec.get("type")
+                    params = force_spec
+                
+                if force_type == "gravity":
+                    acc = params.get("acc", [0.0, 0.0, -9.81])
+                    # Calculate direction and g from acc vector
+                    acc_np = f"[{acc[0]}, {acc[1]}, {acc[2]}]"
+                    # We can pass the vector directly if we modify add_gravity, 
+                    # but the current add_gravity takes g and direction.
+                    # Let's just pass the vector as 'direction' and g=1.0 or modify add_gravity.
+                    # Actually, looking at templates.py:
+                    # def add_gravity(sim, rod, g=9.81, direction=(0.0, 0.0, -1.0)):
+                    #    acc_gravity = np.array(direction) * g
+                    # So we can just pass g=1.0 and direction=acc
+                    script_lines.append(f"    add_gravity(sim, rod_{idx}, g=1.0, direction={acc_np})")
+                    
+                elif force_type == "endpoint_force":
+                    force_vec = params.get("force", [0.1, 0.0, 0.0])
+                    ramp = params.get("ramp", 0.1)
+                    force_str = f"[{force_vec[0]}, {force_vec[1]}, {force_vec[2]}]"
                     script_lines.append(
-                        f"    # Note: EndpointForces applies linear force. For twist/torque,")
-                    script_lines.append(
-                        f"    # we would strictly need EndpointExternalTorques, but for this demo")
-                    script_lines.append(
-                        f"    # we will apply a transverse force to cause bending/twisting.")
-                    script_lines.append(
-                        f"    add_endpoint_force(sim, rod_{idx}, force=[0.1, 0.0, 0.0], ramp_up_time=0.1)")
+                        f"    add_endpoint_force(sim, rod_{idx}, force={force_str}, ramp_up_time={ramp})")
+
 
             # Add damping
             script_lines.append(
