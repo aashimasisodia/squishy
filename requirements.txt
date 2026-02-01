@@ -3,3 +3,6 @@ openai
 python-dotenv
 numpy
 matplotlib
+fastapi
+uvicorn
+pydantic
