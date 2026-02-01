@@ -1,15 +1,25 @@
-from backend.pipeline import SceneGeneratorPipeline
+from backend.api.pipeline import SceneGeneratorPipeline
 import os
 import subprocess
 import sys
 import time
+import datetime
 
-# Ensure the project root is in sys.path so we can import backend
+# Ensure the project root is in sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def main():
     print("--- Starting Pipeline Automation ---")
+
+    # 0. Setup Directories
+    backend_dir = os.path.dirname(os.path.abspath(__file__))
+    generated_base_dir = os.path.join(backend_dir, "generated")
+
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_dir = os.path.join(generated_base_dir, timestamp)
+    os.makedirs(output_dir, exist_ok=True)
+    print(f"Output directory created: {output_dir}")
 
     # 1. Initialize Pipeline
     print("\n[1/5] Initializing SceneGeneratorPipeline...")
@@ -20,7 +30,6 @@ def main():
         return
 
     # 2. Generate Script
-    # prompt = "A horizontal rod made of soft biological tissue fixed at the left end, being pulled down by gravity and pulled to the right by a 5N force at the tip."
     prompt = """
        Generate a PyElastica simulation of a single Cosserat rod made of soft biological tissues in 3D where the endpoints of the rod are free to move. The rod should be actuated by a time-varying intrinsic curvature that forms a traveling sinusoidal wave along the rod (kappa(s,t) = A sin(2π(s/λ - t/T))).
     """
@@ -36,9 +45,8 @@ def main():
         return
 
     # 3. Save Script
-    backend_dir = os.path.dirname(os.path.abspath(__file__))
     script_filename = "generated_simulation.py"
-    script_path = os.path.join(backend_dir, script_filename)
+    script_path = os.path.join(output_dir, script_filename)
 
     print(f"\n[3/5] Saving generated script to: {script_path}")
     with open(script_path, "w") as f:
@@ -47,13 +55,12 @@ def main():
     # 4. Run Simulation
     print(f"\n[4/5] Running simulation script ({script_filename})...")
 
-    # We run the script in the backend directory so output files appear there
     cmd_sim = [sys.executable, script_filename]
 
     try:
         start_time = time.time()
-        # capture_output=True allows us to see stdout if it fails, or we can just let it stream
-        result = subprocess.run(cmd_sim, cwd=backend_dir, check=True)
+        # Run inside the output_dir so output files appear there
+        result = subprocess.run(cmd_sim, cwd=output_dir, check=True)
         elapsed = time.time() - start_time
         print(f"Simulation completed in {elapsed:.2f}s.")
     except subprocess.CalledProcessError as e:
@@ -64,31 +71,35 @@ def main():
         return
 
     # Check if pkl exists
-    pkl_path = os.path.join(backend_dir, "simulation_data.pkl")
+    pkl_filename = "simulation_data.pkl"
+    pkl_path = os.path.join(output_dir, pkl_filename)
     if not os.path.exists(pkl_path):
         print(f"Error: {pkl_path} was not created by the simulation.")
         return
 
     # 5. Run Renderer
-    renderer_filename = "elastica_render.py"
-    renderer_path = os.path.join(backend_dir, renderer_filename)
-    print(f"\n[5/5] Running renderer ({renderer_filename})...")
+    # We locate the renderer in backend/api/elastica_render.py
+    renderer_path = os.path.join(backend_dir, "api", "elastica_render.py")
+    print(f"\n[5/5] Running renderer...")
 
     if not os.path.exists(renderer_path):
         print(f"Renderer not found at {renderer_path}")
         return
 
-    cmd_render = [sys.executable, renderer_filename, "simulation_data.pkl"]
+    # We run the renderer, passing the pkl file path
+    # Since we are running from output_dir context (cwd), passing just filename works if we set cwd
+    cmd_render = [sys.executable, renderer_path, pkl_filename]
 
     try:
-        result_render = subprocess.run(cmd_render, cwd=backend_dir, check=True)
+        result_render = subprocess.run(cmd_render, cwd=output_dir, check=True)
         print("Rendering completed successfully.")
     except subprocess.CalledProcessError as e:
         print(f"Rendering failed with return code {e.returncode}.")
     except Exception as e:
         print(f"Failed to run renderer: {e}")
 
-    print("\n--- Pipeline Finished ---")
+    print(f"\n--- Pipeline Finished ---")
+    print(f"Outputs saved to: {output_dir}")
 
 
 if __name__ == "__main__":
