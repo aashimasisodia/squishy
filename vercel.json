@@ -26,7 +26,10 @@
           "backend/venv/**",
           "backend/.env",
           "backend/api/example_code.py",
-          "backend/api/generated_simulation.py"
+          "backend/api/generated_simulation.py",
+          "frontend/**",
+          "node_modules/**",
+          ".git/**"
         ]
       }
     },
