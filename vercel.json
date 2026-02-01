@@ -15,7 +15,18 @@
       "use": "@vercel/python",
       "config": {
         "includeFiles": [
-          "backend/api/elastica_render.py"
+          "backend/api/elastica_render.py",
+          "backend/api/templates.py",
+          "backend/api/materials.py"
+        ],
+        "excludeFiles": [
+          "backend/generated/**",
+          "backend/__pycache__/**",
+          "backend/api/__pycache__/**",
+          "backend/venv/**",
+          "backend/.env",
+          "backend/api/example_code.py",
+          "backend/api/generated_simulation.py"
         ]
       }
     },
