@@ -205,14 +205,14 @@ def main():
 
     # 2. Create Objects
     rods = []
-    # Rod 0 (rubber)
+    # Rod 0 (soft_biological_tissue)
     rod_0 = make_rod(
         sim,
         n_elem=10,
         length=1.0,
         radius=0.01,
-        density=1100,
-        youngs_modulus=10000000.0,
+        density=1000,
+        youngs_modulus=10000.0,
         poisson_ratio=0.5,
         start=[0.0, 0.0, 0.0],
         direction=[0.0, 0.0, 1.0],
