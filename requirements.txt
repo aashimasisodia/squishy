@@ -1,3 +1,5 @@
 pyelastica
 openai
 python-dotenv
+numpy
+matplotlib
