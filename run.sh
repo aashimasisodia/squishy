@@ -1,3 +1,7 @@
 #!/bin/bash
-# API Key is now loaded from .env
-python -m backend.run_pipeline
+cd backend
+source venv/bin/activate
+uvicorn server:app --reload
+
+cd frontend
+npm run dev

@@ -3,7 +3,10 @@ uvicorn
 pydantic
 openai
 python-dotenv
+# Explicitly pin numba to a newer version to ensure Python 3.12 compatibility
+# and avoid building ancient llvmlite versions from source.
+numba>=0.60.0
+numpy<2.0.0
 pyelastica
 matplotlib
-numpy
 python-multipart
