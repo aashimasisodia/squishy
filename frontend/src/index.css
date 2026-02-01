@@ -1,0 +1,222 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Raleway:wght@200;300;400;500;600;700&display=swap');
+
+@layer base {
+  :root {
+    /* Squishy Brand Colors - Black background + deep blue accent */
+    --background: 0 0% 5%; /* Near black */
+    --foreground: 0 0% 100%; /* Pure white */
+
+    --card: 0 0% 10%; /* Dark card */
+    --card-foreground: 0 0% 100%;
+
+    --popover: 0 0% 8%;
+    --popover-foreground: 0 0% 100%;
+
+    --primary: 215 70% 60%; /* Blue accent */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 0% 35%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 0 0% 40%;
+    --muted-foreground: 0 0% 75%;
+
+    --accent: 215 70% 60%; /* Blue accent */
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 45%;
+    --input: 0 0% 38%;
+    --ring: 215 70% 45%;
+
+    --radius: 1rem;
+
+    /* Custom Squishy tokens */
+    --squishy-charcoal: 0 0% 30%;
+    --squishy-charcoal-dark: 0 0% 22%;
+    --squishy-charcoal-light: 0 0% 40%;
+    --squishy-white: 0 0% 100%;
+    --squishy-blue: 215 70% 60%;
+    --squishy-blue-light: 215 70% 70%;
+
+    /* Gradients */
+    --gradient-hero: linear-gradient(135deg, hsl(var(--squishy-charcoal-dark)) 0%, hsl(var(--squishy-charcoal)) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 5%) 0%, hsl(var(--squishy-blue) / 0.3) 100%);
+    --gradient-blue: linear-gradient(135deg, hsl(var(--squishy-blue)) 0%, hsl(var(--squishy-blue-light)) 100%);
+
+    /* Shadows */
+    --shadow-soft: 0 4px 24px -8px hsl(0 0% 0% / 0.4);
+    --shadow-glow: 0 0 40px hsl(var(--squishy-blue) / 0.3);
+
+    --sidebar-background: 0 0% 25%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 215 70% 35%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 30%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 0 0% 45%;
+    --sidebar-ring: 215 70% 45%;
+  }
+
+  .dark {
+    --background: 0 0% 5%;
+    --foreground: 0 0% 100%;
+    --card: 0 0% 10%;
+    --card-foreground: 0 0% 100%;
+    --popover: 0 0% 8%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 215 70% 35%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 35%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 40%;
+    --muted-foreground: 0 0% 75%;
+    --accent: 215 70% 35%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 45%;
+    --input: 0 0% 38%;
+    --ring: 215 70% 45%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+    font-family: 'Raleway', system-ui, sans-serif;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Raleway', system-ui, sans-serif;
+    font-weight: 300;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Raleway', system-ui, sans-serif;
+    font-weight: 600;
+  }
+
+  button, input, textarea, select {
+    font-family: 'Raleway', system-ui, sans-serif;
+  }
+}
+
+@layer components {
+  .hero-gradient {
+    background: var(--gradient-hero);
+  }
+
+  .card-gradient {
+    background: var(--gradient-card);
+  }
+
+  .blue-gradient {
+    background: var(--gradient-blue);
+  }
+
+  .glow-blue {
+    box-shadow: var(--shadow-glow);
+  }
+
+  .text-gradient {
+    background: var(--gradient-blue);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}
+
+@layer utilities {
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  .animate-bounce-slow {
+    animation: bounce-slow 3s ease-in-out infinite;
+  }
+
+  .animate-pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  .animate-drift {
+    animation: drift 8s ease-in-out infinite;
+  }
+
+  .animate-spin-slow {
+    animation: spin-slow 20s linear infinite;
+  }
+
+  .animate-shimmer {
+    animation: shimmer 3s ease-in-out infinite;
+    background-size: 200% 100%;
+  }
+
+  .animate-wiggle {
+    animation: wiggle 2s ease-in-out infinite;
+  }
+
+  .animate-fade-in-up {
+    animation: fade-in-up 0.6s ease-out forwards;
+    opacity: 0;
+  }
+
+  .animate-scale-pulse {
+    animation: scale-pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-20px); }
+  }
+
+  @keyframes bounce-slow {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-10px) scale(1.02); }
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 20px hsl(var(--squishy-blue) / 0.2); }
+    50% { box-shadow: 0 0 40px hsl(var(--squishy-blue) / 0.4); }
+  }
+
+  @keyframes drift {
+    0%, 100% { transform: translate(0, 0) rotate(0deg); }
+    25% { transform: translate(10px, -15px) rotate(5deg); }
+    50% { transform: translate(-5px, -25px) rotate(-3deg); }
+    75% { transform: translate(-15px, -10px) rotate(3deg); }
+  }
+
+  @keyframes spin-slow {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  @keyframes wiggle {
+    0%, 100% { transform: rotate(-3deg); }
+    50% { transform: rotate(3deg); }
+  }
+
+  @keyframes fade-in-up {
+    0% { opacity: 0; transform: translateY(30px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes scale-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+  }
+}

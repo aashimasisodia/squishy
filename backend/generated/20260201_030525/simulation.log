@@ -1,0 +1,17 @@
+Running simulation for 5.0s (2500 steps)...
+Traceback (most recent call last):
+  File "/Users/aashimasisodia/Documents/keywords-hackathon/backend/generated/20260201_030525/generated_simulation.py", line 409, in <module>
+    main()
+  File "/Users/aashimasisodia/Documents/keywords-hackathon/backend/generated/20260201_030525/generated_simulation.py", line 399, in main
+    finalize_and_integrate(sim, final_time=final_time, total_steps=total_steps)
+  File "/Users/aashimasisodia/Documents/keywords-hackathon/backend/generated/20260201_030525/generated_simulation.py", line 353, in finalize_and_integrate
+    sim.finalize()
+  File "/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/elastica/modules/base_system.py", line 241, in finalize
+    finalize()
+  File "/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/elastica/modules/forcing.py", line 72, in _finalize_forcing
+    forcing_instance = external_force_and_torque.instantiate()
+  File "/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/elastica/modules/forcing.py", line 155, in instantiate
+    return self._forcing_cls(*self._args, **self._kwargs)
+  File "/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/elastica/external_forces.py", line 165, in __init__
+    assert ramp_up_time > 0.0
+AssertionError

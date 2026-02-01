@@ -1,0 +1,5 @@
+Running simulation for 5.0s (5000 steps)...
+  0%|          | 0/5000 [00:00<?, ?it/s] 44%|████▎     | 2183/5000 [00:00<00:00, 21828.30it/s]100%|██████████| 5000/5000 [00:00<00:00, 29064.54it/s]
+Final time of simulation is :  4.9999999999999485
+Saving results to simulation_data.pkl...
+Done.
