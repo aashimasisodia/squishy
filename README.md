@@ -6,6 +6,8 @@ This project is a high-fidelity soft robotics simulation platform that leverages
 
 The application is architected as a monorepo containing a **FastAPI** backend for simulation orchestration and a **React/Vite** frontend for the interactive workshop environment.
 
+We extend our thanks to [Keywords.ai]([url](https://www.keywordsai.co/)), [Trae](trae.ai), and [Lovable]([url](https://lovable.dev/)) for sponsoring credits for this project. We used Keywords to log our LLM requests and utilize the gateway to route the user request to the appropriate LLM based on the specific, grounded reasoning we needed. Trae powered our backend coding and Lovable our frontend.
+
 ## System Architecture
 
 ### Backend (`/backend`)
@@ -14,7 +16,6 @@ The application is architected as a monorepo containing a **FastAPI** backend fo
 - **JIT Compilation**: Numba (LLVM-based JIT for high-performance numerical computing)
 - **Visualization**: Matplotlib (headless rendering) + FFmpeg (GIF encoding)
 - **Orchestration**: BackgroundTasks for non-blocking simulation execution.
-- **Serverless Compatibility**: Designed to run on Vercel Serverless Functions with ephemeral filesystem handling (`/tmp`).
 
 ### Frontend (`/frontend`)
 - **Framework**: React 18 + Vite
