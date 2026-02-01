@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, PlainTextResponse
 from pydantic import BaseModel
@@ -16,17 +16,25 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 
+router = APIRouter(prefix="/api")
+
 
 class PromptRequest(BaseModel):
     prompt: str
 
 
 def get_output_dir(timestamp_id: str):
-    backend_dir = os.path.dirname(os.path.abspath(__file__))
-    return os.path.join(backend_dir, "generated", timestamp_id)
+    if os.environ.get("VERCEL"):
+        # On Vercel, we can only write to /tmp
+        generated_dir = os.path.join("/tmp", "generated")
+    else:
+        backend_dir = os.path.dirname(os.path.abspath(__file__))
+        generated_dir = os.path.join(backend_dir, "generated")
+
+    return os.path.join(generated_dir, timestamp_id)
 
 
-@app.post("/generate")
+@router.post("/generate")
 async def generate_simulation(request: PromptRequest, background_tasks: BackgroundTasks):
     """
     Starts a simulation generation task in the background.
@@ -45,7 +53,7 @@ async def generate_simulation(request: PromptRequest, background_tasks: Backgrou
     }
 
 
-@app.get("/status/{timestamp_id}")
+@router.get("/status/{timestamp_id}")
 async def get_status(timestamp_id: str):
     output_dir = get_output_dir(timestamp_id)
     if not os.path.exists(output_dir):
@@ -64,7 +72,7 @@ async def get_status(timestamp_id: str):
     return {"status": "processing"}
 
 
-@app.get("/gif/{timestamp_id}")
+@router.get("/gif/{timestamp_id}")
 async def get_gif(timestamp_id: str):
     output_dir = get_output_dir(timestamp_id)
     gif_path = os.path.join(output_dir, "simulation.gif")
@@ -80,7 +88,7 @@ async def get_gif(timestamp_id: str):
     return FileResponse(gif_path, media_type="image/gif")
 
 
-@app.get("/code/{timestamp_id}")
+@router.get("/code/{timestamp_id}")
 async def get_code(timestamp_id: str):
     output_dir = get_output_dir(timestamp_id)
     code_path = os.path.join(output_dir, "generated_simulation.py")
@@ -92,6 +100,8 @@ async def get_code(timestamp_id: str):
         content = f.read()
 
     return PlainTextResponse(content)
+
+app.include_router(router)
 
 if __name__ == "__main__":
     import uvicorn

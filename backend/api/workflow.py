@@ -5,6 +5,7 @@ import datetime
 import subprocess
 from backend.api.pipeline import SceneGeneratorPipeline
 
+
 def run_simulation_workflow(prompt: str, timestamp_id: str = None) -> str:
     """
     Runs the full simulation pipeline.
@@ -15,11 +16,15 @@ def run_simulation_workflow(prompt: str, timestamp_id: str = None) -> str:
     # 0. Setup Directories
     # backend/api/workflow.py -> backend/api -> backend
     backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    generated_base_dir = os.path.join(backend_dir, "generated")
+
+    if os.environ.get("VERCEL"):
+        generated_base_dir = os.path.join("/tmp", "generated")
+    else:
+        generated_base_dir = os.path.join(backend_dir, "generated")
 
     if timestamp_id is None:
         timestamp_id = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    
+
     output_dir = os.path.join(generated_base_dir, timestamp_id)
     os.makedirs(output_dir, exist_ok=True)
     print(f"Output directory created: {output_dir}")
@@ -49,7 +54,8 @@ def run_simulation_workflow(prompt: str, timestamp_id: str = None) -> str:
         # Run inside the output_dir so output files appear there
         # Capture output to log file for debugging
         with open(os.path.join(output_dir, "simulation.log"), "w") as log_file:
-            subprocess.run(cmd_sim, cwd=output_dir, check=True, stdout=log_file, stderr=subprocess.STDOUT)
+            subprocess.run(cmd_sim, cwd=output_dir, check=True,
+                           stdout=log_file, stderr=subprocess.STDOUT)
 
         # 5. Run Renderer
         renderer_path = os.path.join(backend_dir, "api", "elastica_render.py")
@@ -58,8 +64,9 @@ def run_simulation_workflow(prompt: str, timestamp_id: str = None) -> str:
 
         cmd_render = [sys.executable, renderer_path, pkl_filename]
         with open(os.path.join(output_dir, "render.log"), "w") as log_file:
-            subprocess.run(cmd_render, cwd=output_dir, check=True, stdout=log_file, stderr=subprocess.STDOUT)
-            
+            subprocess.run(cmd_render, cwd=output_dir, check=True,
+                           stdout=log_file, stderr=subprocess.STDOUT)
+
         print(f"Workflow completed successfully for ID: {timestamp_id}")
         return timestamp_id
 
