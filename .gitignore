@@ -1,6 +1,5 @@
 backend/__pycache__/
 backend/.env
-backend/generated/
 __pycache__/
 # Logs
 frontend/logs

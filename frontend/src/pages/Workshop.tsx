@@ -22,7 +22,7 @@ const Workshop = () => {
 
     try {
       // 1. Send generation request
-      const response = await fetch("http://localhost:8000/generate", {
+      const response = await fetch("/api/generate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -41,14 +41,14 @@ const Workshop = () => {
       // 2. Poll for status
       const pollInterval = setInterval(async () => {
         try {
-          const statusRes = await fetch(`http://localhost:8000/status/${id}`);
+          const statusRes = await fetch(`/api/status/${id}`);
           const statusData = await statusRes.json();
 
           if (statusData.status === "completed") {
             clearInterval(pollInterval);
 
             // 3. Fetch results
-            const gifUrl = `http://localhost:8000/gif/${id}?t=${Date.now()}`;
+            const gifUrl = `/api/gif/${id}?t=${Date.now()}`;
 
             // Preload the image to prevent race conditions or 404s
             const preloadImage = (url: string) => {
@@ -75,7 +75,7 @@ const Workshop = () => {
 
             setGeneratedGif(gifUrl);
 
-            const codeRes = await fetch(`/api/code/${id}`);
+            const codeRes = await fetch(`http://localhost:8000/code/${id}`);
             const codeText = await codeRes.text();
             setGeneratedCode(codeText);
 
