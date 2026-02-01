@@ -1,77 +1,88 @@
-# Text-to-Physics Simulation Platform
+# Text-to-Physics Soft Robotics Simulation Platform
 
-A web-based platform that generates physics simulations from natural language prompts using PyElastica.
+## Overview
 
-## Project Structure
+This project is a high-fidelity soft robotics simulation platform that leverages **Generative AI** to translate natural language descriptions into executable physics simulations. The system utilizes **PyElastica**, a Cosserat rod theory-based physics engine, to model complex continuum mechanics and soft body dynamics.
 
-- `frontend/`: React + Vite + TypeScript application
-- `backend/`: FastAPI Python backend
-- `vercel.json`: Vercel deployment configuration
+The application is architected as a monorepo containing a **FastAPI** backend for simulation orchestration and a **React/Vite** frontend for the interactive workshop environment.
 
-## Local Development
+## System Architecture
 
-### 1. Backend Setup
+### Backend (`/backend`)
+- **Framework**: FastAPI (Python 3.11+)
+- **Physics Engine**: [PyElastica](https://github.com/GazzolaLab/PyElastica) (Cosserat Rod Theory)
+- **JIT Compilation**: Numba (LLVM-based JIT for high-performance numerical computing)
+- **Visualization**: Matplotlib (headless rendering) + FFmpeg (GIF encoding)
+- **Orchestration**: BackgroundTasks for non-blocking simulation execution.
+- **Serverless Compatibility**: Designed to run on Vercel Serverless Functions with ephemeral filesystem handling (`/tmp`).
+
+### Frontend (`/frontend`)
+- **Framework**: React 18 + Vite
+- **UI Library**: Shadcn UI + Tailwind CSS
+- **State Management**: React Hooks
+- **Communication**: REST API via Vite Proxy (dev) and Vercel Rewrites (prod).
+
+## Prerequisites
+
+Ensure the following system dependencies are installed:
+
+- **Python 3.11+** (Required for PyElastica/Numba compatibility)
+- **Node.js 18+** & **npm** (or Bun/Yarn)
+- **FFmpeg**: Critical for rendering simulation GIFs.
+  - macOS: `brew install ffmpeg`
+  - Ubuntu: `sudo apt install ffmpeg`
+  - Windows: `choco install ffmpeg`
+
+## Installation & Setup
+
+### 1. Clone Repository
+```bash
+git clone <repository-url>
+cd keywords-hackathon
+```
+
+### 2. Backend Setup
+The backend requires a virtual environment to manage dependencies, particularly for Numba and PyElastica compilation.
 
 ```bash
 cd backend
-python3 -m venv venv
-source venv/bin/activate
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+# Note: numba>=0.60.0 is pinned to ensure LLVM compatibility
 pip install -r requirements.txt
 ```
 
-Create a `.env` file in the `backend/` directory:
-```
-OPENAI_API_KEY=your_api_key_here
-```
+**Configuration:**
+Create a `.env` file in `backend/` if environment variables (like OpenAI API keys) are required for the generative workflow.
 
-Run the backend server:
+### 3. Frontend Setup
 ```bash
-uvicorn server:app --reload
+cd ../frontend
+npm install
+# or if using bun
+# bun install
 ```
-The API will be available at `http://localhost:8000`.
 
-### 2. Frontend Setup
+## Running Locally
 
-Open a new terminal:
+To run the full stack locally, you need to start both the backend server and the frontend development server concurrently.
+
+### Terminal 1: Backend
+```bash
+cd backend
+source venv/bin/activate
+# Runs on http://localhost:8000
+python server.py
+```
+
+### Terminal 2: Frontend
 ```bash
 cd frontend
-npm install
+# Runs on http://localhost:8080 (proxies /api requests to localhost:8000)
 npm run dev
 ```
-The application will be available at `http://localhost:5173`.
 
-## Vercel Deployment
+Access the application at **http://localhost:8080**.
 
-This project is configured for seamless deployment on Vercel as a monorepo.
-
-### Prerequisites
-- A Vercel account
-- Your OpenAI API Key
-
-### Deployment Steps
-
-1. **Push to GitHub/GitLab/Bitbucket**: Ensure your code is pushed to a remote repository.
-
-2. **Import Project in Vercel**:
-   - Go to your Vercel Dashboard.
-   - Click "Add New..." -> "Project".
-   - Select your repository.
-
-3. **Configure Project**:
-   - **Framework Preset**: Vercel should automatically detect "Vite" or "Other". If not, select "Vite".
-   - **Root Directory**: Leave as `./` (the root of the repo).
-   - **Build & Output Settings**: The `vercel.json` file handles this automatically.
-
-4. **Environment Variables**:
-   - Expand the "Environment Variables" section.
-   - Add `OPENAI_API_KEY` with your actual API key.
-   - (Optional) `VERCEL=1` is automatically set by the platform, enabling the app to switch to ephemeral `/tmp` storage for simulations.
-
-5. **Deploy**:
-   - Click "Deploy".
-   - Vercel will build the frontend and set up the Python serverless functions.
-
-### Troubleshooting Vercel Deployment
-
-- **404 Errors on API**: Ensure `vercel.json` rewrites are correctly pointing `/api/(.*)` to `backend/server.py`.
-- **Server Errors (500)**: Check Vercel Function logs. Common issues might be missing dependencies in `backend/requirements.txt` or execution timeouts (simulations are computationally intensive).
