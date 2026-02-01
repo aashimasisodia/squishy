@@ -39,7 +39,7 @@ Ensure the following system dependencies are installed:
 ### 1. Clone Repository
 ```bash
 git clone <repository-url>
-cd keywords-hackathon
+cd squishy
 ```
 
 ### 2. Backend Setup
