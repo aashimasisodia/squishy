@@ -75,7 +75,7 @@ const Workshop = () => {
 
             setGeneratedGif(gifUrl);
 
-            const codeRes = await fetch(`http://localhost:8000/code/${id}`);
+            const codeRes = await fetch(`/api/code/${id}`);
             const codeText = await codeRes.text();
             setGeneratedCode(codeText);
 
