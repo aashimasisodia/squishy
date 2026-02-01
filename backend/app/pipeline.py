@@ -1,7 +1,7 @@
 import os
 import json
 import logging
-from typing import Optional, Dict, Any
+from typing import Dict, Any
 from openai import OpenAI
 from dotenv import load_dotenv
 
@@ -22,7 +22,7 @@ class SceneGeneratorPipeline:
     Pipeline to generate PyElastica scene specifications (JSON) using Keywords AI.
     """
 
-    def __init__(self, api_key: Optional[str] = None, base_url: str = "https://api.keywordsai.co/api/"):
+    def __init__(self, base_url: str = "https://api.keywordsai.co/api/"):
         """
         Initialize the pipeline with Keywords AI credentials.
 
