@@ -1,4 +1,4 @@
-# Text-to-Physics Soft Robotics Simulation Platform
+# Squishy.ai, a Text-to-Physics Soft Robotics Simulation Platform
 
 ## Overview
 
